@@ -9,6 +9,7 @@ async fn run_flash_command(
     timeout: &str,
     log_file: &mut tokio::fs::File,
     binary_dir: &str,
+    count: usize,
 ) -> bool {
     let command = "BootCommander";
     let id = format!("-tid={}", id);
@@ -41,13 +42,17 @@ async fn run_flash_command(
     println!("{}", stdout);
     eprintln!("{}", stderr);
 
-    if !output.status.success() {
+    if stdout.contains("Finishing programming session...[[32mOK[0m]") {
         log_file
-            .write_all(format!("ID {}: Command failed\n", id).as_bytes())
+            .write_all(format!("{} - FoC for {}: OK\n", count, id).as_bytes())
             .await
             .expect("Failed to write to log file");
-
-        // Write stdout line by line
+        return true;
+    } else {
+        log_file
+            .write_all(format!("{} - FoC for {}: Not OK\n", count, id).as_bytes())
+            .await
+            .expect("Failed to write to log file");
         log_file
             .write_all(b"Stdout:\n")
             .await
@@ -62,26 +67,7 @@ async fn run_flash_command(
                 .await
                 .expect("Failed to write to log file");
         }
-
-        // Write stderr line by line
-        log_file
-            .write_all(b"Stderr:\n")
-            .await
-            .expect("Failed to write to log file");
-        for line in stderr.lines() {
-            log_file
-                .write_all(line.as_bytes())
-                .await
-                .expect("Failed to write to log file");
-            log_file
-                .write_all(b"\n")
-                .await
-                .expect("Failed to write to log file");
-        }
-        false
-    } else {
-        println!("TID {}: Command succeeded", id);
-        true
+        return false;
     }
 }
 
@@ -106,7 +92,7 @@ async fn main() {
 
         thread::sleep(time::Duration::from_secs(5));
 
-        let res118 = run_flash_command("148", timeout, &mut file, dir).await;
+        let res118 = run_flash_command("118", timeout, &mut file, dir, i + 1).await;
         if !res118 {
             println!("Flashing S32K118 failed on iteration {}", i + 1);
         }
