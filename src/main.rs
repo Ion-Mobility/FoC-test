@@ -1,8 +1,8 @@
 use std::env;
-use std::{thread, time};
 use tokio::fs::OpenOptions;
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::Command;
+use tokio::time::{self, Duration};
 
 async fn run_flash_command(
     id: &str,
@@ -12,63 +12,72 @@ async fn run_flash_command(
     count: usize,
 ) -> bool {
     let command = "BootCommander";
-    let id = format!("-tid={}", id);
-    let timeout = format!("-t1={}", timeout);
-    let dir = format!("{}", binary_dir);
+    let id_arg = format!("-tid={}", id);
+    let timeout_arg = format!("-t1={}", timeout);
+    let dir_arg = format!("{}", binary_dir);
     let args = vec![
         "-t=xcp_can",
         "-d=can0",
         "-b=250000",
-        &timeout,
-        &id,
+        &timeout_arg,
+        &id_arg,
         "-xid=1",
-        &dir,
+        &dir_arg,
     ];
     println!(
         "Running command for ID {} with timeout {}, binary dir: {}",
-        id, timeout, dir
+        id, timeout, dir_arg
     );
 
-    let output = Command::new(command)
+    let mut child = Command::new(command)
         .args(&args)
-        .output()
-        .await
+        .stdout(std::process::Stdio::piped())
+        .spawn()
         .expect("Failed to execute command");
 
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = child.stdout.take().expect("Failed to open stdout");
+    let mut reader = BufReader::new(stdout).lines();
 
-    // Print stdout and stderr to console
-    println!("{}", stdout);
-    eprintln!("{}", stderr);
+    let mut output = String::new();
+    let mut success = false;
 
-    if stdout.contains("Finishing programming session...[[32mOK[0m]") {
+    while let Ok(line) = time::timeout(Duration::from_secs(60), reader.next_line()).await {
+        if let Some(line) = line.expect("Failed to read line") {
+            println!("{}", line);
+            output.push_str(&line);
+            output.push('\n');
+
+            if line.contains("Finishing programming session...[[32mOK[0m]") {
+                success = true;
+            }
+        } else {
+            break; // End of output stream
+        }
+    }
+
+    if !success {
         log_file
-            .write_all(format!("{} - FoC for {}: OK\n", count, id).as_bytes())
-            .await
-            .expect("Failed to write to log file");
-        return true;
-    } else {
-        log_file
-            .write_all(format!("{} - FoC for {}: Not OK\n", count, id).as_bytes())
+            .write_all(format!("{} - FoC for {}: Not OK\n", count, id_arg).as_bytes())
             .await
             .expect("Failed to write to log file");
         log_file
             .write_all(b"Stdout:\n")
             .await
             .expect("Failed to write to log file");
-        for line in stdout.lines() {
-            log_file
-                .write_all(line.as_bytes())
-                .await
-                .expect("Failed to write to log file");
-            log_file
-                .write_all(b"\n")
-                .await
-                .expect("Failed to write to log file");
-        }
-        return false;
+        log_file
+            .write_all(output.as_bytes())
+            .await
+            .expect("Failed to write to log file");
+    } else {
+        log_file
+            .write_all(format!("{} - FoC for {}: OK\n", count, id_arg).as_bytes())
+            .await
+            .expect("Failed to write to log file");
     }
+
+    child.kill().await.expect("Failed to kill process");
+
+    success
 }
 
 #[tokio::main]
@@ -90,14 +99,14 @@ async fn main() {
     for i in 0..num_repeats {
         println!("Iteration {}", i + 1);
 
-        thread::sleep(time::Duration::from_secs(5));
+        time::sleep(Duration::from_secs(5)).await;
 
         let res118 = run_flash_command("118", timeout, &mut file, dir, i + 1).await;
         if !res118 {
             println!("Flashing S32K118 failed on iteration {}", i + 1);
         }
 
-        // let res148 = run_flash_command("148", timeout, &mut file).await;
+        // let res148 = run_flash_command("148", timeout, &mut file, dir, i + 1).await;
         // if !res148 {
         //     println!("Flashing S32K148 failed on iteration {}", i + 1);
         // }
