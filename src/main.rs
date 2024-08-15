@@ -84,12 +84,20 @@ async fn run_flash_command(
 async fn setup_imx() {
     //Some special for imx environment
     // Stop the hmi-service-manager
-    let _output = Command::new("sudo")
-        .arg("systemctl")
+    let output = Command::new("systemctl")
         .arg("stop")
         .arg("hmi-service-manager")
         .output()
-        .await;
+        .await
+        .expect("Failed to stop hmi-service-manager");
+        if !output.status.success() {
+            eprintln!(
+                "Failed to stop hmi-service-manager: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        } else {
+            println!("hmi-service-manager stopped successfully.");
+        }
 
     // Execute imx-pwr-keep
     Command::new("sh")
@@ -143,7 +151,7 @@ async fn main() {
         std::process::exit(1);
     }
 
-    let _ = setup_imx();
+    let _ = setup_imx().await;
 
     let log_file = "error_log.txt";
     let mut file = OpenOptions::new()
