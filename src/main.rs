@@ -81,6 +81,47 @@ async fn run_flash_command(
     success
 }
 
+async fn setup_imx() {
+    //Some special for imx environment
+    // Stop the hmi-service-manager
+    let _output = Command::new("sudo")
+        .arg("systemctl")
+        .arg("stop")
+        .arg("hmi-service-manager")
+        .output()
+        .await;
+
+    // Execute imx-pwr-keep
+    Command::new("sh")
+        .arg("-c")
+        .arg("imx-pwr-keep")
+        .output()
+        .await
+        .expect("Failed to execute imx-pwr-keep");
+
+    // Setup GPIO 30
+    Command::new("sh")
+        .arg("-c")
+        .arg("echo 30 > /sys/class/gpio/export")
+        .output()
+        .await
+        .expect("Failed to export GPIO 30");
+
+    Command::new("sh")
+        .arg("-c")
+        .arg("echo out > /sys/class/gpio/gpio30/direction")
+        .output()
+        .await
+        .expect("Failed to set GPIO 30 direction");
+
+    Command::new("sh")
+        .arg("-c")
+        .arg("echo 1 > /sys/class/gpio/gpio30/value")
+        .output()
+        .await
+        .expect("Failed to set GPIO 30 value");
+}
+
 #[tokio::main]
 async fn main() {
     let args: Vec<String> = env::args().collect();
@@ -101,6 +142,8 @@ async fn main() {
         eprintln!("Error: The provided binary directory path is not valid or does not exist.");
         std::process::exit(1);
     }
+
+    let _ = setup_imx();
 
     let log_file = "error_log.txt";
     let mut file = OpenOptions::new()
