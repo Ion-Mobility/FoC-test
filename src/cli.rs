@@ -2,6 +2,7 @@ use clap::Parser;
 
 #[derive(Debug, Parser)]
 #[command(version, about, long_about= None)]
+///A command to test Flashing Over CAN from imx(host)
 pub struct Args {
     /// Number of repeating Foc for 118&148
     #[arg(short, long, default_value_t = 1)]
