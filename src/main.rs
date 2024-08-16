@@ -15,7 +15,7 @@ async fn run_flash_command(
     let command = "BootCommander";
     let id_arg = format!("-tid={}", id);
     let timeout_arg = format!("-t1={}", timeout);
-    let dir_arg = format!("{}", binary_dir);
+    let dir_arg = binary_dir.to_string();
     let args = vec![
         "-t=xcp_can",
         "-d=can0",
@@ -90,14 +90,14 @@ async fn setup_imx() {
         .output()
         .await
         .expect("Failed to stop hmi-service-manager");
-        if !output.status.success() {
-            eprintln!(
-                "Failed to stop hmi-service-manager: {}",
-                String::from_utf8_lossy(&output.stderr)
-            );
-        } else {
-            println!("hmi-service-manager stopped successfully.");
-        }
+    if !output.status.success() {
+        eprintln!(
+            "Failed to stop hmi-service-manager: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    } else {
+        println!("hmi-service-manager stopped successfully.");
+    }
 
     // Execute imx-pwr-keep
     Command::new("sh")
