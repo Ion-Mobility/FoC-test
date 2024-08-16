@@ -1,5 +1,5 @@
 // use std::env;
-// use std::path::Path;
+use std::path::Path;
 // use tokio::fs::OpenOptions;
 // use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 // use tokio::process::Command;
@@ -15,6 +15,17 @@ use std::io;
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
+    let args = Args::parse();
+    println!("{:#?}", args);
+    if (!Path::new(&args.rt_bin_path).exists() || !Path::new(&args.rt_bin_path).is_file())
+        || (!Path::new(&args.tl_bin_path).exists() || !Path::new(&args.tl_bin_path).is_file())
+    {
+        eprintln!("Error: The provided binary directory path is not valid or does not exist.");
+        std::process::exit(1);
+    }
+
+    let _ = foc::Foc::setup().await;
+
     let log_file = "error_log.txt";
     let mut file = OpenOptions::new()
         .create(true)
@@ -22,11 +33,6 @@ async fn main() -> io::Result<()> {
         .open(log_file)
         .await
         .expect("Cannot open log file");
-
-    let args = Args::parse();
-    println!("{:#?}", args);
-
-    let _ = foc::Foc::setup().await;
 
     for i in 0..args.iter_num {
         println!("Iteration {}", i + 1);

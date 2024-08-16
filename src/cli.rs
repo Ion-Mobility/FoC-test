@@ -8,9 +8,17 @@ pub struct Args {
     #[arg(short, long, default_value_t = 1)]
     pub iter_num: u16,
     /// Path to 118 binary file
-    #[arg(short, long)]
+    #[arg(
+        short,
+        long,
+        default_value = "/lib/firmware/ion-realtime/gridania-realtime.srec"
+    )]
     pub rt_bin_path: String,
     ///Path to 148 binary file
-    #[arg(short, long)]
+    #[arg(
+        short,
+        long,
+        default_value = "/lib/firmware/ion-telematic/gridania-realtime.srec"
+    )]
     pub tl_bin_path: String,
 }
