@@ -37,22 +37,27 @@ impl Foc {
             .expect("Failed to execute command");
 
         let stdout = child.stdout.take().expect("Failed to open stdout");
-        let mut reader = BufReader::new(stdout).lines();
+        // let mut reader = BufReader::new(stdout).lines();
+        let mut reader = BufReader::new(stdout);
 
         let mut output = String::new();
         let mut success = false;
 
-        while let Ok(line) = time::timeout(Duration::from_secs(300), reader.next_line()).await {
-            if let Some(line) = line.expect("Failed to read line") {
-                println!("{}", line);
-                output.push_str(&line);
-                output.push('\n');
+        while let Ok(_) = time::timeout(Duration::from_secs(300), reader.fill_buf()).await {
+            let buffer = reader.buffer();
 
-                if line.contains("Finishing programming session...[[32mOK[0m]") {
-                    success = true;
-                }
-            } else {
+            if buffer.is_empty() {
                 break; // End of output stream
+            }
+            let output_chunk = String::from_utf8_lossy(buffer).to_string();
+            println!("{}", output_chunk);
+            output.push_str(&output_chunk);
+
+            // clear the buffer to allow more data to read
+            let len = buffer.len();
+            reader.consume(len);
+            if output_chunk.contains("Finishing programming session...[[32mOK[0m]") {
+                success = true;
             }
         }
 
