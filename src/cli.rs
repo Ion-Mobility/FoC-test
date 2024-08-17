@@ -18,7 +18,7 @@ pub struct Args {
     #[arg(
         short,
         long,
-        default_value = "/lib/firmware/ion-telematic/gridania-realtime.srec"
+        default_value = "/lib/firmware/ion-telematic/gridania-telematic.srec"
     )]
     pub tl_bin_path: String,
 }

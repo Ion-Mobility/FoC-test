@@ -42,6 +42,7 @@ impl Foc {
 
         let mut output = String::new();
         let mut success = false;
+        let mut finishing = false;
 
         while let Ok(_) = time::timeout(Duration::from_secs(300), reader.fill_buf()).await {
             let buffer = reader.buffer();
@@ -56,7 +57,11 @@ impl Foc {
             // clear the buffer to allow more data to read
             let len = buffer.len();
             reader.consume(len);
-            if output_chunk.contains("Finishing programming session...[[32mOK[0m]") {
+            if output_chunk.contains("Finishing programming session...") {
+                finishing = true;
+            }
+
+            if finishing && output_chunk.contains("[[32mOK[0m]") {
                 success = true;
             }
         }
