@@ -51,7 +51,14 @@ impl Foc {
                 break; // End of output stream
             }
             let output_chunk = String::from_utf8_lossy(buffer).to_string();
-            println!("{}", output_chunk);
+            // Identify progress lines and handle them separately
+            if output_chunk.contains("...") || output_chunk.contains('%') {
+                // Print and update dynamic parts in place
+                print!("\r{}", output_chunk.trim_end());
+            } else {
+                // For other lines, print normally
+                println!("{}", output_chunk.trim_end());
+            }
             output.push_str(&output_chunk);
 
             // clear the buffer to allow more data to read
